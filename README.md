@@ -1,3 +1,3 @@
 # pyzog
 
-pyzog = Python ZeroMQ logging
+pyzog = Python ZeroMQ logging + Redis logging

@@ -7,6 +7,7 @@ import logging
 from logging.handlers import WatchedFileHandler
 
 import zmq
+import redis
 from pythonjsonlogger import jsonlogger
 
 
@@ -17,6 +18,47 @@ JSON_LOG_FORMAT = r'%(levelname)s %(module)s %(funcName)s %(pathname)s %(lineno)
 
 
 class PUSHHandler(logging.Handler):
+    """A basic logging handler that emits log messages through a PUSH socket.
+
+    Takes a PUSH socket already bound to interfaces or an interface to bind to.
+
+    Example::
+
+        sock = context.socket(zmq.PUSH)
+        sock.connect('tcp://192.168.0.1:5050')
+        handler = PUSHHandler(sock)
+
+    Or::
+
+        handler = PUBHandler('tcp://192.168.1:5050')
+
+    These are equivalent.
+    """
+    socket = None
+    ctx = None
+    
+    def __init__(self, interface_or_socket, context=None):
+        logging.Handler.__init__(self)
+        if isinstance(interface_or_socket, zmq.Socket):
+            self.socket = interface_or_socket
+            self.ctx = self.socket.context
+        else:
+            self.ctx = context or zmq.Context()
+            self.socket = self.ctx.socket(zmq.PUSH)
+            self.socket.connect(interface_or_socket)
+
+    def emit(self, record):
+        """Emit a log message on my socket."""
+        msg = self.format(record)
+        try:
+            self.socket.send_string(msg)
+        except TypeError:
+            raise
+        except (ValueError, zmq.ZMQError):
+            self.handleError(record)
+
+
+class SUBSCRIBEHandler(logging.Handler):
     """A basic logging handler that emits log messages through a PUSH socket.
 
     Takes a PUSH socket already bound to interfaces or an interface to bind to.
@@ -129,6 +171,7 @@ def get_logger(name, target, type_='file', fmt='text', level=logging.INFO):
     log.addHandler(hdr)
     log.setLevel(level)
     return log
+
 
 here = Path(__file__).parent.parent
 logger = get_logger('pyzog', here.joinpath('logs'), type_='file', fmt='json')
