@@ -15,14 +15,10 @@ class Receiver(object):
     # 日志存储文件夹
     logpath = None
 
-    # 监听或者连接的地址
-    addr = None
-
     # 所有的日志搜集器
     loggers = None
 
-    def __init__(self, addr, logpath):
-        self.addr = addr
+    def __init__(self, logpath):
         if isinstance(logpath, str):
             self.logpath = Path(logpath)
         else:
@@ -50,21 +46,29 @@ class ZeroMQReceiver(Receiver):
     # zmq socket
     socket = None
 
+    # 监听或者连接的地址
+    addr = None
+
+    def __init__(self, logpath, host, port):
+        super().__init__(logpath)
+        self.addr = host + ':' + str(port)
+
     def start(self):
         """ 开始接收
         """
-        self.ctx = zmq.Context()
-        self.socket = self.ctx.socket(zmq.PULL)
-
-        self.socket.bind(self.addr)
-        logger.warn("ZeroMQ listen addr: %s" % self.addr)
-
         try:
+            self.ctx = zmq.Context()
+            self.socket = self.ctx.socket(zmq.PULL)
+
+            self.socket.bind(self.addr)
+            logger.warn("ZeroMQ listen addr: %s" % self.addr)
             while True:
                 msg = self.socket.recv_string()
-                self.on_receive(msg)
-        except (KeyboardInterrupt, SystemExit) as e:
+                if msg:
+                    self.on_receive(msg)
+        except Exception as e:
             logger.error('Exit:' + repr(e))
+            return e
 
     def on_receive(self, msg):
         logname = 'mjptest'
@@ -72,7 +76,7 @@ class ZeroMQReceiver(Receiver):
         log.info(msg)
 
 
-class RedisReceiver(object):
+class RedisReceiver(Receiver):
     """ 接收 Redis PUBLISH 发来的数据并写入 logpath 文件夹
     """
     # redis 实例
@@ -81,24 +85,41 @@ class RedisReceiver(object):
     # pubsub 实例
     pub = None
 
+    # redis 配置
+    host = None
+    port = None
+    password = None
+    db = 0
+    channel = None
+
+    def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channel=['pyzog.*']):
+        super().__init__(logpath)
+        self.host = host
+        self.port = port
+        self.password = password
+        self.db = db
+        self.channel = channel
+
     def start(self):
         """ 开始接收
         """
-        address = self.addr.split(':')
-        self.r = redis.Redis(host=address[0], port=int(address[1]), db=0)
-        self.pub = self.r.pubsub()
-
-        logger.warn("Redis connect addr: %s" % self.addr)
-
         try:
+            self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db)
+            self.pub = self.r.pubsub(ignore_subscribe_messages=True)
+            self.pub.psubscribe(*self.channel)
+
+            logger.warn("Redis connect addr: %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
+
             while True:
                 msg = self.pub.get_message()
-                self.on_receive(msg)
-        except (KeyboardInterrupt, SystemExit) as e:
+                if msg:
+                    self.on_receive(msg)
+        except Exception as e:
             self.pub.close()
             logger.error('Exit:' + repr(e))
+            return e
 
     def on_receive(self, msg):
-        logname = 'mjptest'
+        logname = msg['channel'].decode()
         log = self.get_logger(logname)
-        log.info(msg)
+        log.info(msg['data'].decode())

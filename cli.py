@@ -12,6 +12,7 @@ import pyzog
 from pyzog.receiver import ZeroMQReceiver, RedisReceiver
 
 import click
+import re
 
 
 basedir = Path(resource_filename('pyzog', '__init__.py')).parents[1]
@@ -26,31 +27,50 @@ def main():
 
 START_HELP = """
 启动 pyzog receiver。\n
-    TYPE: redis/zmq 代表不同的服务器\n
-    ADDR: tcp://127.0.0.1:3456 或者 password@127.0.0.1:3456/0\n
     LOGPATH: log 文件存储路径"""
 
+def validate_addr(ctx, param, value):
+    matchobj = re.match(r'^(?P<scheme>\w+:\/\/)?(?P<password>\w+)??@?(?P<host>[\w\d_\.\*]*):(?P<port>\d{4,5})/?(?P<db>\d+)?$', value)
+    if matchobj is None:
+        raise click.BadParameter('请提供正确的 addr 格式！')
+    return matchobj
+
+
 @click.command(help=START_HELP)
-@click.argument('type', nargs=1, type=str)
-@click.argument('addr', nargs=1, type=str)
+@click.option('-t', '--type', 'type_', required=True, type=click.Choice(['redis', 'zmq'], case_sensitive=False), help='指定服务器类型')
+@click.option('-a', '--addr', required=True, type=str,  callback=validate_addr, help='形如 tcp://127.0.0.1:5011 或者 password@127.0.0.1:6379/0')
+@click.option('-c', '--channel', required=False, type=str, multiple=True, help='仅当 type 为 redis 的时候提供，允许指定多个 channel 名称')
 @click.argument('logpath', nargs=1, type=click.Path(dir_okay=True, exists=True))
-def start(type, addr, logpath):
-    if addr <= 1024:
+def start(type_, addr, channel, logpath):
+    click.echo(addr.groupdict())
+    if type_ == 'zmq' and addr.group('scheme') is None:
+        st = click.style('zmq 类型必须提供 scheme！', fg='red')
+        click.echo(st, err=True)
+        return
+    
+    if int(addr.group('port')) <= 1024:
         st = click.style('请使用大于 1024 的端口号！', fg='red')
         click.echo(st, err=True)
         return
 
     r = None
-    if type == 'zmq':
-        r = ZeroMQReceiver(addr, logpath)
-    elif type == 'redis':
-        r = RedisReceiver(addr, logpath)
+    if type_ == 'zmq':
+        r = ZeroMQReceiver(logpath, addr.group('scheme') + addr.group('host'), addr.group('port'))
+    elif type_ == 'redis':
+        kwargs = {k:v for k, v in addr.groupdict().items() if k in ('host', 'port', 'password', 'db') and v is not None}
+        if not channel:
+            click.echo(click.style('必须提供 channel', fg='red'), err=True)
+            return
+        kwargs['channel'] = channel
+        click.echo(kwargs)
+        r = RedisReceiver(logpath, **kwargs)
     else:
         click.echo(click.style('不支持的 type', fg='red'), err=True)
         return
 
-    click.echo(click.style('正在启动 pyzlog %s receiver...' % type, fg='yellow'))
-    r.start()
+    click.echo(click.style('正在启动 pyzlog %s receiver...' % type_, fg='yellow'))
+    err = r.start()
+    click.echo(click.style('EXIT: %s' % err, fg='red'), err=True)
 
 main.add_command(start)
 
