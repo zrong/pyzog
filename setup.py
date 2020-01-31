@@ -7,7 +7,7 @@ here = Path(__file__).parent
 def read(*parts):
     """ 读取一个文件并返回内容
     """
-    return here.joinpath(**parts).read_text(encoding='utf8')
+    return here.joinpath(*parts).read_text(encoding='utf8')
 
 def find_version(*file_paths):
     """ 从 __init__.py 的 __version__ 变量中提取版本号
