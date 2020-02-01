@@ -41,6 +41,10 @@ entry_points = {
     ]
 }
 
+package_data = {
+    'pyzog.tpl' : ['*.jinja2']
+}
+
 setup(
     name = "pyzog",
     version=find_version('pyzog', '__init__.py'),
@@ -56,5 +60,5 @@ setup(
     entry_points=entry_points,
     zip_safe=False,
     classifiers=classifiers,
-    include_package_data=True
+    package_data=package_data
 )

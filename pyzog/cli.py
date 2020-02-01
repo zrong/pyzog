@@ -9,34 +9,15 @@ from pathlib import Path
 import re
 
 from pkg_resources import resource_filename
-from jinja2 import Environment, FileSystemLoader
 import click
 
 from pyzog.receiver import ZeroMQReceiver, RedisReceiver
+from pyzog.tpl import create_from_jinja, tpl_files
 
 
 basedir = Path(resource_filename('pyzog', '__init__.py')).parents[1]
 # 找到 logs 文件夹所在地
 logsdir = basedir.joinpath('logs')
-# 所有的模版文件名
-tpl_files = {
-    'supervisord': 'supervisord.jinja2',
-    'systemd': 'supervisord.service.jinja2',
-    'program': 'supervisor_program.jinja2',
-}
-
-
-def create_from_jinja(tplfile, tpltarget=None, replaceobj={}):
-    """ 调用 jinja2 直接渲染
-    :param tpltarget: 如果不提供则返回渲染后的文本，若提供则必须是一个 Path 对象
-    """
-    tplenv = Environment(loader=FileSystemLoader(basedir.joinpath('tpl').resolve()))
-    tpl = tplenv.get_template(tplfile)
-    text = tpl.render(replaceobj)
-    if isinstance(tpltarget, Path):
-        tpltarget.write_text(text)
-    return text
-
 
 @click.group(help='执行 pyzog 命令')
 def main():
@@ -107,13 +88,11 @@ ECHO_CONF_HELP = '输出 supervisord 和 systemd 配置文件内容'
 @click.command(help=ECHO_CONF_HELP)
 @click.option('-t', '--type', 'type_', required=True, type=click.Choice(['supervisord', 'systemd'], case_sensitive=False), help='生成 supervisord 或者 systemd 配置文件。使用 systemd 来驱动 supervisord。')
 def echoconf(type_):
-    tplfile = tpl_files.get(type_)
-    if tplfile is None:
+    try:
+        conf_content = create_from_jinja(type_)
+        click.echo(conf_content)
+    except Exception:
         click.echo(click.style('不支持的 type', fg='red'), err=True)
-        return
-
-    conf_content = create_from_jinja(tplfile)
-    click.echo(conf_content)
 
 
 GEN_PROGRAM_CONF_HELP = '生成 supervisord 的 program 配置文件'
@@ -128,8 +107,12 @@ def genprog(name, type_, addr, channel):
     if not succ:
         return
 
-    tplfile = tpl_files['program']
-    conf_content = create_from_jinja(tplfile)
+    try:
+        conf_content = create_from_jinja('program')
+        click.echo(conf_content)
+    except Exception:
+        click.echo(click.style('不支持的 type', fg='red'), err=True)
+        return
 
     cwdpath = Path().cwd()
     replaceobj = {

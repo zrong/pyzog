@@ -6,7 +6,8 @@
 import zmq
 import redis
 from pathlib import Path
-from . import get_logger, logger
+
+from pyzog.logging import get_logger
 
 
 class Receiver(object):
@@ -18,6 +19,9 @@ class Receiver(object):
     # 所有的日志搜集器
     loggers = None
 
+    # pyzog 自身专用的 logger
+    logger = None
+
     def __init__(self, logpath):
         if isinstance(logpath, str):
             self.logpath = Path(logpath)
@@ -25,6 +29,7 @@ class Receiver(object):
             self.logpath = logpath
         self.logpath.mkdir(parents=True, exist_ok=True)
         self.loggers = {}
+        self.logger = get_logger('pyzog', self.logpath.joinpath('logs'), type_='file', fmt='json')
 
     def start(self):
         raise ValueError('Implement start!')
@@ -61,13 +66,13 @@ class ZeroMQReceiver(Receiver):
             self.socket = self.ctx.socket(zmq.PULL)
 
             self.socket.bind(self.addr)
-            logger.warn("ZeroMQ listen addr: %s" % self.addr)
+            self.logger.warn("ZeroMQ listen addr: %s" % self.addr)
             while True:
                 msg = self.socket.recv_string()
                 if msg:
                     self.on_receive(msg)
         except Exception as e:
-            logger.error('Exit:' + repr(e))
+            self.logger.error('Exit:' + repr(e))
             return e
 
     def on_receive(self, msg):
@@ -108,7 +113,7 @@ class RedisReceiver(Receiver):
             self.pub = self.r.pubsub(ignore_subscribe_messages=True)
             self.pub.psubscribe(*self.channel)
 
-            logger.warn("Redis connect addr: %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
+            self.logger.warn("Redis connect addr: %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
 
             while True:
                 msg = self.pub.get_message()
@@ -116,7 +121,7 @@ class RedisReceiver(Receiver):
                     self.on_receive(msg)
         except Exception as e:
             self.pub.close()
-            logger.error('Exit:' + repr(e))
+            self.logger.error('Exit:' + repr(e))
             return e
 
     def on_receive(self, msg):
