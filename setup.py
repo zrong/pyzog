@@ -29,8 +29,8 @@ classifiers = [
     'Programming Language :: Python :: 3.6',
     'Development Status :: 4 - Beta',
     'Environment :: Console',
-    'Operating System :: OS Independent',
-    'Topic :: Internet :: WWW/TCP :: Logging',
+    'Operating System :: POSIX :: Linux',
+    'Topic :: Internet :: Log Analysis',
     'Topic :: Utilities',
     'License :: OSI Approved :: MIT License',
 ]
@@ -56,5 +56,6 @@ setup(
     entry_points=entry_points,
     include_package_data = True,
     zip_safe=False,
-    classifiers = classifiers
+    classifiers = classifiers,
+    include_package_data=True
 )
