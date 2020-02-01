@@ -2,3 +2,4 @@ click
 python-json-logger
 pyzmq
 redis
+jinja2

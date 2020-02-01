@@ -6,18 +6,37 @@
 ###########################################
 
 from pathlib import Path
+import re
+
 from pkg_resources import resource_filename
+from pyzog.receiver import ZeroMQReceiver, RedisReceiver
+from jinja2 import Environment, FileSystemLoader
+import click
 
 import pyzog
-from pyzog.receiver import ZeroMQReceiver, RedisReceiver
-
-import click
-import re
 
 
 basedir = Path(resource_filename('pyzog', '__init__.py')).parents[1]
 # 找到 logs 文件夹所在地
 logsdir = basedir.joinpath('logs')
+# 所有的模版文件名
+tpl_files = {
+    'supervisord': 'supervisord.jinja2',
+    'systemd': 'supervisord.service.jinja2',
+    'program': 'supervisor_program.jinja2',
+}
+
+
+def create_from_jinja(tplfile, tpltarget=None, replaceobj={}):
+    """ 调用 jinja2 直接渲染
+    :param tpltarget: 如果不提供则返回渲染后的文本，若提供则必须是一个 Path 对象
+    """
+    tplenv = Environment(loader=FileSystemLoader(basedir.joinpath('tpl').resolve()))
+    tpl = tplenv.get_template(tplfile)
+    text = tpl.render(replaceobj)
+    if isinstance(tpltarget, Path):
+        tpltarget.write_text(text)
+    return text
 
 
 @click.group(help='执行 pyzog 命令')
@@ -28,6 +47,9 @@ def main():
 START_HELP = """
 启动 pyzog receiver。\n
     LOGPATH: log 文件存储路径"""
+TYPE_HELP = '指定服务器类型'
+ADDR_HELP = '形如 tcp://127.0.0.1:5011 或者 password@127.0.0.1:6379/0'
+CHANNEL_HELP = '仅当 type 为 redis 的时候提供，允许指定多个 channel 名称'
 
 def validate_addr(ctx, param, value):
     matchobj = re.match(r'^(?P<scheme>\w+:\/\/)?(?P<password>\w+)??@?(?P<host>[\w\d_\.\*]*):(?P<port>\d{4,5})/?(?P<db>\d+)?$', value)
@@ -36,21 +58,29 @@ def validate_addr(ctx, param, value):
     return matchobj
 
 
-@click.command(help=START_HELP)
-@click.option('-t', '--type', 'type_', required=True, type=click.Choice(['redis', 'zmq'], case_sensitive=False), help='指定服务器类型')
-@click.option('-a', '--addr', required=True, type=str,  callback=validate_addr, help='形如 tcp://127.0.0.1:5011 或者 password@127.0.0.1:6379/0')
-@click.option('-c', '--channel', required=False, type=str, multiple=True, help='仅当 type 为 redis 的时候提供，允许指定多个 channel 名称')
-@click.argument('logpath', nargs=1, type=click.Path(dir_okay=True, exists=True))
-def start(type_, addr, channel, logpath):
-    click.echo(addr.groupdict())
+def check_addr(type_, addr):
+    # click.echo(addr.groupdict())
     if type_ == 'zmq' and addr.group('scheme') is None:
         st = click.style('zmq 类型必须提供 scheme！', fg='red')
         click.echo(st, err=True)
-        return
+        return False
     
     if int(addr.group('port')) <= 1024:
         st = click.style('请使用大于 1024 的端口号！', fg='red')
         click.echo(st, err=True)
+        return False
+    return True
+
+
+@click.command(help=START_HELP)
+@click.option('-t', '--type', 'type_', required=True, type=click.Choice(['redis', 'zmq'], case_sensitive=False), help=TYPE_HELP)
+@click.option('-a', '--addr', required=True, type=str,  callback=validate_addr, help=ADDR_HELP)
+@click.option('-c', '--channel', required=False, type=str, multiple=True, help=CHANNEL_HELP)
+@click.argument('logpath', nargs=1, type=click.Path(dir_okay=True, exists=True))
+def start(type_, addr, channel, logpath):
+    # click.echo(addr.groupdict())
+    succ = check_addr(type_, addr)
+    if not succ:
         return
 
     r = None
@@ -72,7 +102,50 @@ def start(type_, addr, channel, logpath):
     err = r.start()
     click.echo(click.style('EXIT: %s' % err, fg='red'), err=True)
 
+
+ECHO_CONF_HELP = '输出 supervisord 和 systemd 配置文件内容'
+
+@click.command(help=ECHO_CONF_HELP)
+@click.option('-t', '--type', 'type_', required=True, type=click.Choice(['supervisord', 'systemd'], case_sensitive=False), help='生成 supervisord 或者 systemd 配置文件。使用 systemd 来驱动 supervisord。')
+def echoconf(type_):
+    tplfile = tpl_files.get(type_)
+    if tplfile is None:
+        click.echo(click.style('不支持的 type', fg='red'), err=True)
+        return
+
+    conf_content = create_from_jinja(tplfile)
+    click.echo(conf_content)
+
+
+GEN_PROGRAM_CONF_HELP = '生成 supervisord 的 program 配置文件'
+
+@click.command(help=GEN_PROGRAM_CONF_HELP)
+@click.option('-n', '--name', required=True, type=str, help='输入 program 名称')
+@click.option('-t', '--type', 'type_', required=True, type=click.Choice(['redis', 'zmq'], case_sensitive=False), help=TYPE_HELP)
+@click.option('-a', '--addr', required=True, type=str,  callback=validate_addr, help=ADDR_HELP)
+@click.option('-c', '--channel', required=False, type=str, multiple=True, help=CHANNEL_HELP)
+def genprog(name, type_, addr, channel):
+    succ = check_addr(type_, addr)
+    if not succ:
+        return
+
+    tplfile = tpl_files['program']
+    conf_content = create_from_jinja(tplfile)
+
+    cwdpath = Path().cwd()
+    replaceobj = {
+        'name': name,
+        'cwd': cwdpath.resolve(),
+        'channels': channel,
+        'type': type_,
+        'addr': addr.string,
+    }
+    create_from_jinja(tplfile, cwdpath.joinpath(name + '.conf'), replaceobj)
+
+
 main.add_command(start)
+main.add_command(echoconf)
+main.add_command(genprog)
 
 
 if __name__ == '__main__':
