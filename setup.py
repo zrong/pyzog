@@ -54,8 +54,7 @@ setup(
     packages = find_packages(exclude=['test*', 'doc*', 'fabric']),
     install_requires=find_requires('requirements.txt'),
     entry_points=entry_points,
-    include_package_data = True,
     zip_safe=False,
-    classifiers = classifiers,
+    classifiers=classifiers,
     include_package_data=True
 )
