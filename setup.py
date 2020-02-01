@@ -37,7 +37,7 @@ classifiers = [
 
 entry_points = {
     'console_scripts': [
-        'pyzog=cli:main',
+        'pyzog=pyzog.cli:main',
     ]
 }
 

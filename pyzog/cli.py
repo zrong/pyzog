@@ -9,11 +9,10 @@ from pathlib import Path
 import re
 
 from pkg_resources import resource_filename
-from pyzog.receiver import ZeroMQReceiver, RedisReceiver
 from jinja2 import Environment, FileSystemLoader
 import click
 
-import pyzog
+from pyzog.receiver import ZeroMQReceiver, RedisReceiver
 
 
 basedir = Path(resource_filename('pyzog', '__init__.py')).parents[1]
