@@ -103,7 +103,7 @@ def genprog(name, type_, addr, channel):
     if not succ:
         return
 
-    type_ == 'redis':
+    if type_ == 'redis':
         if not channel:
             click.echo(click.style('必须提供 channel', fg='red'), err=True)
             return
