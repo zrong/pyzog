@@ -15,10 +15,6 @@ from pyzog.receiver import ZeroMQReceiver, RedisReceiver
 from pyzog.tpl import create_from_jinja, tpl_files
 
 
-basedir = Path(resource_filename('pyzog', '__init__.py')).parents[1]
-# 找到 logs 文件夹所在地
-logsdir = basedir.joinpath('logs')
-
 @click.group(help='执行 pyzog 命令')
 def main():
     pass
