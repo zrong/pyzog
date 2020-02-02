@@ -108,21 +108,17 @@ def genprog(name, type_, addr, channel):
         return
 
     try:
-        conf_content = create_from_jinja('program')
-        click.echo(conf_content)
+        cwdpath = Path().cwd()
+        replaceobj = {
+            'name': name,
+            'cwd': cwdpath.resolve(),
+            'channels': channel,
+            'type': type_,
+            'addr': addr.string,
+        }
+        create_from_jinja('program', cwdpath.joinpath(name + '.conf'), replaceobj)
     except Exception:
-        click.echo(click.style('不支持的 type', fg='red'), err=True)
-        return
-
-    cwdpath = Path().cwd()
-    replaceobj = {
-        'name': name,
-        'cwd': cwdpath.resolve(),
-        'channels': channel,
-        'type': type_,
-        'addr': addr.string,
-    }
-    create_from_jinja(tplfile, cwdpath.joinpath(name + '.conf'), replaceobj)
+        click.echo(click.style('不支持的 type %s' % type_, fg='red'), err=True)
 
 
 main.add_command(start)
