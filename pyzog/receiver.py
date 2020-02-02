@@ -29,7 +29,7 @@ class Receiver(object):
             self.logpath = logpath
         self.logpath.mkdir(parents=True, exist_ok=True)
         self.loggers = {}
-        self.logger = get_logger('pyzog', self.logpath, type_='file', fmt='json')
+        self.logger = get_logger('pyzog', type_='stream', fmt='text')
 
     def start(self):
         raise ValueError('Implement start!')
@@ -37,7 +37,7 @@ class Receiver(object):
     def get_logger(self, name):
         log = self.loggers.get(name)
         if log is None:
-            log = get_logger(name, self.logpath, type_='file', fmt='raw')
+            log = get_logger(name, target=self.logpath, type_='file', fmt='raw')
             self.loggers[name] = log
         return log
 

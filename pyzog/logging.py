@@ -157,7 +157,7 @@ def get_logging_handler(type_, fmt, level, target=None, name=None) :
     return handler
 
 
-def get_logger(name, target, type_='file', fmt='text', level=logging.INFO):
+def get_logger(name, target=None, type_='file', fmt='text', level=logging.INFO):
     """ 基于 target 创建一个 logger
 
     :param name: logger 的名称，不要带扩展名
