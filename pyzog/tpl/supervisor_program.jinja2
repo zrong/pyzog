@@ -1,5 +1,5 @@
 [program:{{name}}]
-command={{cwd}}/venv/bin/pyzog -t {{type}} -a '{{addr}}'{% for channel in channels%} -c '{{channel}}'{% endfor %}
+command={{cwd}}/venv/bin/pyzog -t {{type}} -a '{{addr}}'{% for channel in channels%} -c '{{channel}}'{% endfor %} {{cwd}}/logs/
 process_name=%(program_name)s
 numprocs=1
 directory={{cwd}}

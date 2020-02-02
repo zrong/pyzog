@@ -29,7 +29,7 @@ class Receiver(object):
             self.logpath = logpath
         self.logpath.mkdir(parents=True, exist_ok=True)
         self.loggers = {}
-        self.logger = get_logger('pyzog', self.logpath.joinpath('logs'), type_='file', fmt='json')
+        self.logger = get_logger('pyzog', self.logpath, type_='file', fmt='json')
 
     def start(self):
         raise ValueError('Implement start!')
