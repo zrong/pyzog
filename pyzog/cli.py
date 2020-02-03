@@ -12,7 +12,7 @@ from pkg_resources import resource_filename
 import click
 
 from pyzog.receiver import ZeroMQReceiver, RedisReceiver
-from pyzog.tpl import create_from_jinja, tpl_files
+from pyzog.tpl import create_from_jinja
 
 
 @click.group(help='执行 pyzog 命令')
@@ -79,16 +79,59 @@ def start(type_, addr, channel, logpath):
     click.echo(click.style('EXIT: %s' % err, fg='red'), err=True)
 
 
-ECHO_CONF_HELP = '输出 supervisord 和 systemd 配置文件内容'
+GEN_SUPE_HELP = '在当前文件夹下生成 supervisord.conf 配置文件'
 
-@click.command(help=ECHO_CONF_HELP)
-@click.option('-t', '--type', 'type_', required=True, type=click.Choice(['supervisord', 'systemd'], case_sensitive=False), help='生成 supervisord 或者 systemd 配置文件。使用 systemd 来驱动 supervisord。')
-def echoconf(type_):
+@click.command(help=GEN_SUPE_HELP)
+@click.option('-p', '--path', required=False, type=click.Path(), help='提供一个路径，配置中和路径相关的内容都放在这个路径下')
+@click.option('--unix-http-server-file', required=False, type=str)
+@click.option('--supervisord-logfile', required=False, type=str)
+@click.option('--supervisord-pidfile', required=False, type=str)
+@click.option('--supervisord-user', required=False, type=str)
+@click.option('--supervisord-directory', required=False, type=str)
+@click.option('--supervisorctl-serverurl', required=False, type=str)
+@click.option('--include-files', required=False, type=str)
+def gensupe(**kwargs):
     try:
-        conf_content = create_from_jinja(type_)
-        click.echo(conf_content)
+        replaceobj = {}
+        path = kwargs.get('path')
+        if path is not None:
+            path = Path(path)
+            replaceobj['unix_http_server_file'] = str(path.joinpath('run', 'supervisord.sock').resolve())
+            replaceobj['supervisorctl_serverurl'] = 'unix://%s' % str(path.joinpath('run', 'supervisord.sock').resolve())
+            replaceobj['include_files'] = str(path.joinpath('conf.d').resolve()) + '/*.conf'
+            replaceobj['supervisord_logfile'] = str(path.joinpath('log', 'supervisord.log').resolve())
+            replaceobj['supervisord_pidfile'] = str(path.joinpath('run', 'supervisord.pid').resolve())
+            replaceobj['supervisord_directory'] = str(path.resolve())
+            
+        for k, v in kwargs.items():
+            if v is not None:
+                replaceobj[k] = v
+        name = 'supervisord'
+        cwdpath = Path().cwd()
+        create_from_jinja(name, cwdpath, replaceobj)
+    except Exception as e:
+        click.echo(click.style('生成错误：%s' % e, fg='red'), err=True)
+        raise click.Abort()
+
+
+GEN_SYS_HELP = '在当前文件夹下生成 systemd 需要的 supervisord.service 配置文件'
+
+@click.command(help=GEN_SYS_HELP)
+@click.option('--supervisord-exec', required=False, type=str)
+@click.option('--supervisorctl-exec', required=False, type=str)
+@click.option('--supervisord-conf', required=False, type=str)
+def gensys(**kwargs):
+    try:
+        replaceobj = {}
+        for k, v in kwargs.items():
+            if v is not None:
+                replaceobj[k] = v
+        name = 'systemd'
+        cwdpath = Path().cwd()
+        create_from_jinja(name, cwdpath, replaceobj)
     except Exception:
-        click.echo(click.style('不支持的 type', fg='red'), err=True)
+        click.echo(click.style('生成错误：%s' % e, fg='red'), err=True)
+        raise click.Abort()
 
 
 GEN_PROGRAM_CONF_HELP = '生成 supervisord 的 program 配置文件'
@@ -98,7 +141,8 @@ GEN_PROGRAM_CONF_HELP = '生成 supervisord 的 program 配置文件'
 @click.option('-t', '--type', 'type_', required=True, type=click.Choice(['redis', 'zmq'], case_sensitive=False), help=TYPE_HELP)
 @click.option('-a', '--addr', required=True, type=str,  callback=validate_addr, help=ADDR_HELP)
 @click.option('-c', '--channel', required=False, type=str, multiple=True, help=CHANNEL_HELP)
-def genprog(name, type_, addr, channel):
+@click.option('-p', '--logpath', required=False, type=str, help='log 文件的路径。若不提供则使用当前文件夹下的 logs 文件夹')
+def genprog(name, type_, addr, channel, logpath):
     succ = check_addr(type_, addr)
     if not succ:
         return
@@ -115,6 +159,7 @@ def genprog(name, type_, addr, channel):
             'channels': channel,
             'type': type_,
             'addr': addr.string,
+            'logpath': logpath or cwdpath.joinpath('logs').resolve(),
         }
         create_from_jinja('program', cwdpath.joinpath(name + '.conf'), replaceobj)
     except Exception:
@@ -122,7 +167,8 @@ def genprog(name, type_, addr, channel):
 
 
 main.add_command(start)
-main.add_command(echoconf)
+main.add_command(gensupe)
+main.add_command(gensys)
 main.add_command(genprog)
 
 

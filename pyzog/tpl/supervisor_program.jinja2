@@ -1,10 +1,10 @@
 [program:{{name}}]
-command={{cwd}}/venv/bin/pyzog start -t {{type}} -a '{{addr}}'{% for channel in channels%} -c '{{channel}}'{% endfor %} {{cwd}}/logs/
+command={{cwd}}/venv/bin/pyzog start -t {{type}} -a '{{addr}}'{% for channel in channels%} -c '{{channel}}'{% endfor %} {{logpath}}
 process_name=%(program_name)s
 numprocs=1
 directory={{cwd}}
 ;umask=022                     ; umask for process (default None)
-priority=999                  ; the relative start priority (default 999)
+priority={{priority}}                  ; the relative start priority (default 999)
 autostart=true                ; start at supervisord start (default: true)
 ;startsecs=1                   ; # of secs prog must stay up to be running (def. 1)
 ;startretries=3                ; max # of serial start failures when starting (default 3)
@@ -14,9 +14,9 @@ stopsignal=QUIT               ; signal used to kill process (default TERM)
 ;stopwaitsecs=10               ; max num secs to wait b4 SIGKILL (default 10)
 ;stopasgroup=false             ; send stop signal to the UNIX process group (default false)
 ;killasgroup=false             ; SIGKILL the UNIX process group (def false)
-user=app
+user={{user}}
 redirect_stderr=true
-stdout_logfile={{cwd}}/logs/{{name}}.log
+stdout_logfile={{logpath}}/{{name}}.log
 ;stdout_logfile_maxbytes=1MB   ; max # logfile bytes b4 rotation (default 50MB)
 ;stdout_logfile_backups=10     ; # of stdout logfile backups (0 means none, default 10)
 ;stdout_capture_maxbytes=1MB   ; number of bytes in 'capturemode' (default 0)

@@ -1,6 +1,13 @@
 ## /lib/systemd/system/supervisord.service
 ## systemctl enable supervisord.service
-## systemctl start supervisord.service
+## systemctl start supervisord.service"""
+##
+## OR
+##
+## ~/.config/systemd/user/supervisord.service
+## systemctl --user enable supervisord.service
+## systemctl --user start supervisord.service"""
+
 
 [Unit]
 Description=Supervisor process control system for UNIX
@@ -8,9 +15,9 @@ Documentation=http://supervisord.org
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/supervisord -n -c /etc/supervisor/supervisord.conf
-ExecStop=/usr/local/bin/supervisorctl $OPTIONS shutdown
-ExecReload=/usr/local/bin/supervisorctl $OPTIONS reload
+ExecStart={{supervisord_exec}} -n -c {{supervisord_conf}}
+ExecStop={{supervisorctl_exec}} $OPTIONS shutdown
+ExecReload={{supervisorctl_exec}} $OPTIONS reload
 KillMode=process
 Restart=on-failure
 RestartSec=30s
