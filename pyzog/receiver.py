@@ -6,6 +6,7 @@
 import zmq
 import redis
 from pathlib import Path
+import time
 
 from pyzog.logging import get_logger
 
@@ -119,6 +120,7 @@ class RedisReceiver(Receiver):
                 msg = self.pub.get_message()
                 if msg:
                     self.on_receive(msg)
+                time.sleep(0.001)
         except Exception as e:
             self.pub.close()
             self.logger.error('Exit:' + repr(e))
