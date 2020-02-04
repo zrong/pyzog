@@ -141,8 +141,9 @@ GEN_PROGRAM_CONF_HELP = '生成 supervisord 的 program 配置文件'
 @click.option('-t', '--type', 'type_', required=True, type=click.Choice(['redis', 'zmq'], case_sensitive=False), help=TYPE_HELP)
 @click.option('-a', '--addr', required=True, type=str,  callback=validate_addr, help=ADDR_HELP)
 @click.option('-c', '--channel', required=False, type=str, multiple=True, help=CHANNEL_HELP)
+@click.option('-u', '--user', required=False, type=str, help='执行 program 的 user')
 @click.option('-p', '--logpath', required=False, type=str, help='log 文件的路径。若不提供则使用当前文件夹下的 logs 文件夹')
-def genprog(name, type_, addr, channel, logpath):
+def genprog(name, type_, addr, channel, user, logpath):
     succ = check_addr(type_, addr)
     if not succ:
         return
@@ -154,16 +155,20 @@ def genprog(name, type_, addr, channel, logpath):
     try:
         cwdpath = Path().cwd()
         replaceobj = {
-            'name': name,
             'cwd': cwdpath.resolve(),
-            'channels': channel,
-            'type': type_,
+            'name': name,
             'addr': addr.string,
+            'type': type_,
             'logpath': logpath or cwdpath.joinpath('logs').resolve(),
         }
+        if channel is not None:
+            replaceobj['channels'] = channel
+        if user is not None:
+            replaceobj['user'] = user
         create_from_jinja('program', cwdpath.joinpath(name + '.conf'), replaceobj)
-    except Exception:
-        click.echo(click.style('不支持的 type %s' % type_, fg='red'), err=True)
+    except Exception as e:
+        click.echo(click.style('生成错误 %s' % e, fg='red'), err=True)
+        raise click.Abort()
 
 
 main.add_command(start)
