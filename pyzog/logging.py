@@ -106,9 +106,6 @@ class RedisHandler(logging.Handler):
     # redis 实例
     r = None
 
-    # pubsub 实例
-    pub = None
-
     # publish 频道
     channel = None
     
@@ -116,16 +113,11 @@ class RedisHandler(logging.Handler):
         logging.Handler.__init__(self)
         self.channel = channel
         self.r = redis.from_url(url, **kwargs)
-        self.pub = self.r.pubsub()
 
     def emit(self, record):
         """Emit a log message on redis."""
         msg = self.format(record)
-        try:
-            self.pub.publish(msg)
-        except Exception:
-            self.pub.close()
-            self.handleError(record)
+        self.r.publish(self.channel, msg)
 
 
 def _create_file_handler(target, filename):
@@ -156,7 +148,12 @@ def _create_zmq_handler(target):
 
 def _create_redis_handler(target, channel):
     """ 创建一个基于 zeromq 的 logging handler
-    :param target: 一个字符串，形如： tcp://127.0.0.1:8334
+    :param target: redis_url 字符串，形如： 
+        redis://[[username]:[password]]@localhost:6379/0
+        rediss://[[username]:[password]]@localhost:6379/0
+        unix://[[username]:[password]]@/path/to/socket.sock?db=0
+        详见： http://www.iana.org/assignments/uri-schemes/prov/redis
+    :param channel: publish 通道
     """
     return RedisHandler(target, channel)
 
@@ -190,7 +187,7 @@ def get_logging_handler(type_, fmt, level, target=None, name=None) :
     elif fmt == 'text':
         formatter = logging.Formatter(TEXT_LOG_FORMAT)
     else:
-        formatter = jsonlogger.JsonFormatter(JSON_LOG_FORMAT, timestamp=True)
+        formatter = jsonlogger.JsonFormatter(JSON_LOG_FORMAT, timestamp=False)
     handler.setLevel(level)
     handler.setFormatter(formatter)
     return handler
