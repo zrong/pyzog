@@ -18,76 +18,41 @@ TEXT_LOG_FORMAT = """
 JSON_LOG_FORMAT = r'%(levelname)s %(module)s %(funcName)s %(pathname)s %(lineno) %(threadName) %(processName) %(created) %(message)'
 
 
-class PUSHHandler(logging.Handler):
-    """A basic logging handler that emits log messages through a PUSH socket.
+class ZeroMQHandler(logging.Handler):
+    """基于 ZeroMQ 的模式来发布 log
 
-    Takes a PUSH socket already bound to interfaces or an interface to bind to.
+    范例::
 
-    Example::
-
-        sock = context.socket(zmq.PUSH)
+        sock = context.socket(zmq.PUB)
         sock.connect('tcp://192.168.0.1:5050')
-        handler = PUSHHandler(sock)
+        handler = ZeroMQHandler(sock)
 
-    Or::
+    或者::
 
-        handler = PUBHandler('tcp://192.168.1:5050')
+        handler = ZeroMQHandler('tcp://192.168.1:5050')
 
     These are equivalent.
     """
     socket = None
     ctx = None
+    socket_type = None
     
-    def __init__(self, interface_or_socket, context=None):
+    def __init__(self, interface_or_socket, context=None, socket_type=zmq.PUB):
+        """ 创建 ZeroMQ context 和 socket
+        :param interface_or_socket: 提供一个 socket 或者协议字符串
+        :param context: 提供 ZeroMQ 的上下文
+        :param socket_type: 提供 ZeroMQ 模式
+        """
         logging.Handler.__init__(self)
         if isinstance(interface_or_socket, zmq.Socket):
             self.socket = interface_or_socket
             self.ctx = self.socket.context
+            self.socket_type = self.socket.socket_type
         else:
             self.ctx = context or zmq.Context()
-            self.socket = self.ctx.socket(zmq.PUSH)
+            self.socket = self.ctx.socket(socket_type)
             self.socket.connect(interface_or_socket)
-
-    def emit(self, record):
-        """Emit a log message on my socket."""
-        msg = self.format(record)
-        try:
-            self.socket.send_string(msg)
-        except TypeError:
-            raise
-        except (ValueError, zmq.ZMQError):
-            self.handleError(record)
-
-
-class SUBSCRIBEHandler(logging.Handler):
-    """A basic logging handler that emits log messages through a PUSH socket.
-
-    Takes a PUSH socket already bound to interfaces or an interface to bind to.
-
-    Example::
-
-        sock = context.socket(zmq.PUSH)
-        sock.connect('tcp://192.168.0.1:5050')
-        handler = PUSHHandler(sock)
-
-    Or::
-
-        handler = PUBHandler('tcp://192.168.1:5050')
-
-    These are equivalent.
-    """
-    socket = None
-    ctx = None
-    
-    def __init__(self, interface_or_socket, context=None):
-        logging.Handler.__init__(self)
-        if isinstance(interface_or_socket, zmq.Socket):
-            self.socket = interface_or_socket
-            self.ctx = self.socket.context
-        else:
-            self.ctx = context or zmq.Context()
-            self.socket = self.ctx.socket(zmq.PUSH)
-            self.socket.connect(interface_or_socket)
+            self.socket_type = socket_type
 
     def emit(self, record):
         """Emit a log message on my socket."""

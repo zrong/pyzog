@@ -55,16 +55,20 @@ class ZeroMQReceiver(Receiver):
     # 监听或者连接的地址
     addr = None
 
-    def __init__(self, logpath, host, port):
+    # ZeroMQ 的模式，默认为订阅模式
+    socket_type = zmq.SUB
+
+    def __init__(self, logpath, host, port, socket_type=zmq.SUB):
         super().__init__(logpath)
         self.addr = host + ':' + str(port)
+        self.socket_type = socket_type
 
     def start(self):
         """ 开始接收
         """
         try:
             self.ctx = zmq.Context()
-            self.socket = self.ctx.socket(zmq.PULL)
+            self.socket = self.ctx.socket(self.socket_type)
 
             self.socket.bind(self.addr)
             self.logger.warn("ZeroMQ listen addr: %s" % self.addr)
