@@ -108,7 +108,7 @@ def _create_zmq_handler(target):
     """ 创建一个基于 zeromq 的 logging handler
     :param target: 一个字符串，形如： tcp://127.0.0.1:8334
     """
-    return PUSHHandler(target)
+    return ZeroMQHandler(target)
 
 
 def _create_redis_handler(target, channel):
