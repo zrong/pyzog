@@ -135,6 +135,9 @@ class RedisReceiver(Receiver):
             return e
 
     def on_receive(self, msg):
-        logname = msg['channel'].decode()
-        log = self.get_logger(logname)
-        log.info(msg['data'].decode())
+        self.logger.warn('msg %s', msg)
+        channel = msg.get('channel')
+        if channel:
+            logname = channel.decode()
+            log = self.get_logger(logname)
+            log.info(msg['data'].decode())
