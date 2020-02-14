@@ -125,6 +125,10 @@ class RedisReceiver(Receiver):
                 if msg:
                     self.on_receive(msg)
                 time.sleep(0.001)
+                if not msg:
+                    self.pub.check_health()
+                    ping = self.pub.ping('PING ' + str(time.time()))
+                    self.logger.warn('PING: %s', ping)
         except Exception as e:
             self.pub.close()
             self.logger.error('Exit:' + repr(e))
