@@ -142,4 +142,4 @@ class RedisReceiver(Receiver):
             log = self.get_logger(logname)
             log.info(data.decode())
         else:
-            log.error('channel: %s, data: %s, type: %s', channel, data, msg.get('type'))
+            self.logger.error('channel: %s, data: %s, type: %s', channel, data, msg.get('type'))
