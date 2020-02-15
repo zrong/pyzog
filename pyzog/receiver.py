@@ -107,6 +107,8 @@ class RedisReceiver(Receiver):
     ping_ts = 0
     ping_interval = 60
 
+    tcp_keep = {socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30}
+
     def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channel=['pyzog.*']):
         super().__init__(logpath)
         self.host = host
@@ -120,11 +122,7 @@ class RedisReceiver(Receiver):
         """
         try:
             self.init_redis()
-            for message in self.pub.listen():
-                self.get_message(message)
-            # while True:
-            #     self.get_message()
-            #     time.sleep(0.001)
+            self.sub_listen()
         except Exception as e:
             self.pub.close()
             self.logger.error('RedisReceiver.Exit:' + repr(e))
@@ -132,12 +130,31 @@ class RedisReceiver(Receiver):
 
     def init_redis(self):
         self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db,
-            health_check_interval=3,
+            health_check_interval=self.ping_interval,
             socket_keepalive=True,
-            socket_keepalive_options={socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30})
+            socket_keepalive_options=self.tcp_keep)
         self.pub = self.r.pubsub(ignore_subscribe_messages=True)
-        self.pub.psubscribe(*self.channel)
         self.logger.warn("RedisReceiver.init_redis %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
+
+    def sub_block(self):
+        self.pub.psubscribe(*self.channel)
+        while True:
+            self.get_message()
+            time.sleep(0.001)
+
+    def sub_listen(self):
+        self.pub.psubscribe(*self.channel)
+        for message in self.pub.listen():
+            self.get_message(message)
+
+    def sub_thread(self):
+        def message_handler(msg):
+            self.get_message(msg)
+        handles = {}
+        for ch in self.channel:
+            handles[ch] = message_handler
+        self.pub.psubscribe(**handles)
+        self.pub.run_in_thread(daemon=True)
 
     def get_message(self, msg=None):
         try:
