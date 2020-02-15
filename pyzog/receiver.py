@@ -128,7 +128,7 @@ class RedisReceiver(Receiver):
             return e
 
     def init_redis(self):
-        self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db)
+        self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db, health_check_interval=3)
         self.pub = self.r.pubsub(ignore_subscribe_messages=True)
         self.pub.psubscribe(*self.channel)
         self.logger.warn("RedisReceiver.init_redis %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
@@ -143,8 +143,9 @@ class RedisReceiver(Receiver):
                 if ts - self.ping_ts > self.ping_interval:
                     self.ping_ts = ts
                     self.pub.check_health()
-                    self.pub.ping('ping ' + str(ts))
-                    self.logger.warn('ping: %s', ts)
+                    # self.pub.ping('ping ' + str(ts))
+                    # self.logger.warn('RedisReceiver.get_message ping: %s', ts)
+                    self.logger.warn('RedisReceiver.get_message check_health %s', ts)
         except AttributeError as e:
             self.logger.error('RedisReceiver.get_message AttributeError:' + repr(e))
 
