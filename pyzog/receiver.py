@@ -7,6 +7,7 @@ import zmq
 import redis
 from pathlib import Path
 import time
+import socket
 
 from pyzog.logging import get_logger
 
@@ -128,7 +129,10 @@ class RedisReceiver(Receiver):
             return e
 
     def init_redis(self):
-        self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db, health_check_interval=3)
+        self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db,
+            health_check_interval=3,
+            socket_keepalive=True,
+            socket_keepalive_options={socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30})
         self.pub = self.r.pubsub(ignore_subscribe_messages=True)
         self.pub.psubscribe(*self.channel)
         self.logger.warn("RedisReceiver.init_redis %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
