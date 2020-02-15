@@ -103,9 +103,9 @@ class RedisReceiver(Receiver):
     db = 0
     channel = None
 
-    # 经常出现断线情况无法 get_message。因此在没有收到消息的时候，每隔一定时间 ping 一次
+    # 保活，每隔一定时间 ping 一次
     ping_ts = 0
-    ping_interval = 3
+    ping_interval = 60
 
     def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channel=['pyzog.*']):
         super().__init__(logpath)
@@ -142,14 +142,13 @@ class RedisReceiver(Receiver):
             msg = self.pub.get_message()
             if msg:
                 self.on_receive(msg)
-            else:
-                ts = time.time()
-                if ts - self.ping_ts > self.ping_interval:
-                    self.ping_ts = ts
-                    self.pub.check_health()
-                    # self.pub.ping('ping ' + str(ts))
-                    # self.logger.warn('RedisReceiver.get_message ping: %s', ts)
-                    self.logger.warn('RedisReceiver.get_message check_health %s', ts)
+            ts = time.time()
+            if ts - self.ping_ts > self.ping_interval:
+                self.ping_ts = ts
+                self.pub.check_health()
+                self.pub.ping('ping ' + str(ts))
+                self.logger.warn('RedisReceiver.get_message ping: %s', ts)
+                # self.logger.warn('RedisReceiver.get_message check_health %s', ts)
         except AttributeError as e:
             self.logger.error('RedisReceiver.get_message AttributeError:' + repr(e))
 
