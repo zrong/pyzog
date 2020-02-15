@@ -120,9 +120,11 @@ class RedisReceiver(Receiver):
         """
         try:
             self.init_redis()
-            while True:
-                self.get_message()
-                time.sleep(0.001)
+            for message in self.pub.listen():
+                self.get_message(message)
+            # while True:
+            #     self.get_message()
+            #     time.sleep(0.001)
         except Exception as e:
             self.pub.close()
             self.logger.error('RedisReceiver.Exit:' + repr(e))
@@ -137,9 +139,10 @@ class RedisReceiver(Receiver):
         self.pub.psubscribe(*self.channel)
         self.logger.warn("RedisReceiver.init_redis %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
 
-    def get_message(self):
+    def get_message(self, msg=None):
         try:
-            msg = self.pub.get_message()
+            if msg is None:
+                msg = self.pub.get_message()
             if msg:
                 self.on_receive(msg)
             ts = time.time()
