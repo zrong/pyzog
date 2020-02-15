@@ -142,17 +142,18 @@ class RedisReceiver(Receiver):
     def sub_block(self):
         self.pub.psubscribe(*self.channel)
         while True:
-            self.get_message()
+            msg = self.pub.get_message()
+            self.check_message(msg)
             time.sleep(self.sleep_time)
 
     def sub_listen(self):
         self.pub.psubscribe(*self.channel)
         for message in self.pub.listen():
-            self.get_message(message)
+            self.check_message(message)
 
     def sub_thread(self):
         def message_handler(msg):
-            self.get_message(msg)
+            self.check_message(msg)
         handles = {}
         for ch in self.channel:
             handles[ch] = message_handler
@@ -160,26 +161,22 @@ class RedisReceiver(Receiver):
         self.thread = self.pub.run_in_thread(sleep_time=self.sleep_time, daemon=True)
         self.thread.join()
 
-    def get_message(self, msg=None):
+    def check_message(self, msg):
         try:
-            if msg is None:
-                msg = self.pub.get_message()
             if msg:
                 self.on_receive(msg)
             ts = time.time()
             if ts - self.ping_ts > self.ping_interval:
                 self.ping_ts = ts
                 self.pub.check_health()
-                self.pub.ping('ping ' + str(ts))
-                self.logger.warn('RedisReceiver.get_message ping: %s', ts)
-                # self.logger.warn('RedisReceiver.get_message check_health %s', ts)
+                self.logger.warn('RedisReceiver.get_message check_health: %s', ts)
         except AttributeError as e:
             self.logger.error('RedisReceiver.get_message AttributeError:' + repr(e))
 
     def on_receive(self, msg):
         channel = msg.get('channel')
         data = msg.get('data')
-        if isinstance(channel, bytes) and  isinstance(data, bytes):
+        if isinstance(channel, bytes) and isinstance(data, bytes):
             logname = channel.decode()
             log = self.get_logger(logname)
             log.info(data.decode())
