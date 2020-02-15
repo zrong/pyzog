@@ -122,7 +122,7 @@ class RedisReceiver(Receiver):
         """
         try:
             self.init_redis()
-            self.sub_listen()
+            self.sub_thread()
         except Exception as e:
             self.pub.close()
             self.logger.error('RedisReceiver.Exit:' + repr(e))
