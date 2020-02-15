@@ -107,6 +107,7 @@ class RedisReceiver(Receiver):
     ping_ts = 0
     ping_interval = 60
     thread = None
+    sleep_time = 0.0001
 
     # tcp_keep = {socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30}
     tcp_keep = None
@@ -142,7 +143,7 @@ class RedisReceiver(Receiver):
         self.pub.psubscribe(*self.channel)
         while True:
             self.get_message()
-            time.sleep(0.001)
+            time.sleep(self.sleep_time)
 
     def sub_listen(self):
         self.pub.psubscribe(*self.channel)
@@ -156,7 +157,7 @@ class RedisReceiver(Receiver):
         for ch in self.channel:
             handles[ch] = message_handler
         self.pub.psubscribe(**handles)
-        self.thread = self.pub.run_in_thread(daemon=True)
+        self.thread = self.pub.run_in_thread(sleep_time=self.sleep_time, daemon=True)
         self.thread.join()
 
     def get_message(self, msg=None):
