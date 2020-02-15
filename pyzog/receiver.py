@@ -107,7 +107,7 @@ class RedisReceiver(Receiver):
     ping_ts = 0
     ping_interval = 60
     thread = None
-    sleep_time = 0.0001
+    sleep_time = 0.0005
 
     # tcp_keep = {socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30}
     tcp_keep = None
