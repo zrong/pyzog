@@ -102,6 +102,10 @@ class RedisReceiver(Receiver):
     db = 0
     channel = None
 
+    # 经常出现断线情况无法 get_message。因此在没有收到消息的时候，每隔一定时间 ping 一次
+    ping_ts = 0
+    ping_interval = 3
+
     def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channel=['pyzog.*']):
         super().__init__(logpath)
         self.host = host
@@ -114,25 +118,35 @@ class RedisReceiver(Receiver):
         """ 开始接收
         """
         try:
-            self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db)
-            self.pub = self.r.pubsub(ignore_subscribe_messages=True)
-            self.pub.psubscribe(*self.channel)
-
-            self.logger.warn("Redis connect addr: %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
-
+            self.init_redis()
             while True:
-                msg = self.pub.get_message()
-                if msg:
-                    self.on_receive(msg)
+                self.get_message()
                 time.sleep(0.001)
-                if not msg:
-                    self.pub.check_health()
-                    ping = self.pub.ping('PING ' + str(time.time()))
-                    self.logger.warn('PING: %s', ping)
         except Exception as e:
             self.pub.close()
-            self.logger.error('Exit:' + repr(e))
+            self.logger.error('RedisReceiver.Exit:' + repr(e))
             return e
+
+    def init_redis(self):
+        self.r = redis.Redis(host=self.host, port=self.port, password=self.password, db=self.db)
+        self.pub = self.r.pubsub(ignore_subscribe_messages=True)
+        self.pub.psubscribe(*self.channel)
+        self.logger.warn("RedisReceiver.init_redis %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
+
+    def get_message(self):
+        try:
+            msg = self.pub.get_message()
+            if msg:
+                self.on_receive(msg)
+            else:
+                ts = time.time()
+                if ts - self.ping_ts > self.ping_interval:
+                    self.ping_ts = ts
+                    self.pub.check_health()
+                    self.pub.ping('ping ' + str(ts))
+                    self.logger.warn('ping: %s', ts)
+        except AttributeError as e:
+            self.logger.error('RedisReceiver.get_message AttributeError:' + repr(e))
 
     def on_receive(self, msg):
         channel = msg.get('channel')
@@ -142,4 +156,4 @@ class RedisReceiver(Receiver):
             log = self.get_logger(logname)
             log.info(data.decode())
         else:
-            self.logger.error('channel: %s, data: %s, type: %s', channel, data, msg.get('type'))
+            self.logger.error('RedisReceiver.on_receive channel: %s, data: %s, type: %s', channel, data, msg.get('type'))
