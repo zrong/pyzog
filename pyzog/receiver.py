@@ -106,8 +106,10 @@ class RedisReceiver(Receiver):
     # 保活，每隔一定时间 ping 一次
     ping_ts = 0
     ping_interval = 60
+    thread = None
 
-    tcp_keep = {socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30}
+    # tcp_keep = {socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30}
+    tcp_keep = None
 
     def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channel=['pyzog.*']):
         super().__init__(logpath)
@@ -134,7 +136,7 @@ class RedisReceiver(Receiver):
             socket_keepalive=True,
             socket_keepalive_options=self.tcp_keep)
         self.pub = self.r.pubsub(ignore_subscribe_messages=True)
-        self.logger.warn("RedisReceiver.init_redis %s@%s:%s/%s" % (self.host, self.port, self.password or '', self.db))
+        self.logger.warn("RedisReceiver.init_redis %s:%s:%s/%s" % (self.password or '', self.host, self.port, self.db))
 
     def sub_block(self):
         self.pub.psubscribe(*self.channel)
@@ -154,7 +156,8 @@ class RedisReceiver(Receiver):
         for ch in self.channel:
             handles[ch] = message_handler
         self.pub.psubscribe(**handles)
-        self.pub.run_in_thread(daemon=True)
+        self.thread = self.pub.run_in_thread(daemon=True)
+        self.thread.join()
 
     def get_message(self, msg=None):
         try:
