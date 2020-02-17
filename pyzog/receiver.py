@@ -129,6 +129,7 @@ class RedisReceiver(Receiver):
         try:
             self.init_redis()
             fun = getattr(self, 'sub_' + self.get_message_type)
+            self.logger.warn('RedisReceiver use %s to get_message, channels is %s, sleep_time is %s', self.get_message_type, self.channels, self.sleep_time)
             fun()
         except Exception as e:
             self.pub.close()
