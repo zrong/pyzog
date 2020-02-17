@@ -101,31 +101,35 @@ class RedisReceiver(Receiver):
     port = None
     password = None
     db = 0
-    channel = None
+    channels = None
 
     # 保活，每隔一定时间 ping 一次
     ping_ts = 0
     ping_interval = 60
     thread = None
     sleep_time = 0.0005
+    get_message_type = 'thread'
 
     # tcp_keep = {socket.TCP_KEEPIDLE: 120, socket.TCP_KEEPCNT: 2, socket.TCP_KEEPINTVL: 30}
     tcp_keep = None
 
-    def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channel=['pyzog.*']):
+    def __init__(self, logpath, host='localhost', port=6379, password=None, db=0, channels=['pyzog.*'], get_message_type='thread', sleep_time=0.0005):
         super().__init__(logpath)
         self.host = host
         self.port = port
         self.password = password
         self.db = db
-        self.channel = channel
+        self.channels = channels
+        self.get_message_type = get_message_type
+        self.sleep_time = sleep_time
 
     def start(self):
         """ 开始接收
         """
         try:
             self.init_redis()
-            self.sub_thread()
+            fun = getattr(self, 'sub_' + self.get_message_type)
+            fun()
         except Exception as e:
             self.pub.close()
             self.logger.error('RedisReceiver.Exit:' + repr(e))
@@ -140,14 +144,14 @@ class RedisReceiver(Receiver):
         self.logger.warn("RedisReceiver.init_redis %s:%s:%s/%s" % (self.password or '', self.host, self.port, self.db))
 
     def sub_block(self):
-        self.pub.psubscribe(*self.channel)
+        self.pub.psubscribe(*self.channels)
         while True:
             msg = self.pub.get_message()
             self.check_message(msg)
             time.sleep(self.sleep_time)
 
     def sub_listen(self):
-        self.pub.psubscribe(*self.channel)
+        self.pub.psubscribe(*self.channels)
         for message in self.pub.listen():
             self.check_message(message)
 
@@ -155,7 +159,7 @@ class RedisReceiver(Receiver):
         def message_handler(msg):
             self.check_message(msg)
         handles = {}
-        for ch in self.channel:
+        for ch in self.channels:
             handles[ch] = message_handler
         self.pub.psubscribe(**handles)
         self.thread = self.pub.run_in_thread(sleep_time=self.sleep_time, daemon=True)

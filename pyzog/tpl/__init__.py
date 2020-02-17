@@ -6,8 +6,16 @@ basedir = Path(__file__).parent
 
 # 所有的模版文件配置
 tplconfs = {
+    'pyzog': {
+        'tpl': 'pyzog.conf.jinja2',
+        'target': None,
+        'default': {
+            'unix_http_server_file': '/var/run/supervisor.sock',
+            'supervisorctl_serverurl':  'unix:///var/run/supervisor.sock',
+        }
+    },
     'supervisord': {
-        'tpl': 'supervisord.jinja2',
+        'tpl': 'supervisord.conf.jinja2',
         'target': 'supervisord.conf',
         'default': {
             'unix_http_server_file': '/var/run/supervisor.sock',
@@ -29,7 +37,7 @@ tplconfs = {
         }
     },
     'program': {
-        'tpl': 'supervisor_program.jinja2',
+        'tpl': 'supervisor_program.conf.jinja2',
         'target': None,
         'default': {
             'priority': 999,

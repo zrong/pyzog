@@ -11,6 +11,44 @@ def get_conf(sconf):
 
 
 @pytest.fixture
+def genpyzog_conf():
+    sconf = Path(__file__).parent.parent.joinpath('pyzogtest.conf')
+    print(' GENPYZOG SETUP create: %s' % sconf)
+    if sconf.exists():
+        sconf.unlink()
+    yield sconf
+    print(' GENPYZOG TEARDOWN unlink: %s' % sconf)
+    sconf.unlink()
+
+
+def test_genpyzog(genpyzog_conf):
+    runner = CliRunner()
+    from pyzog.cli import genpyzog
+
+    pyzog_name = 'pyzogtest'
+    pyzog_type = 'redis'
+    pyzog_addr = '127.0.0.1:6379'
+    pyzog_logpath = '/srv/logs/pyzog'
+    pyzog_sleep_time = 0.0005
+
+    result = runner.invoke(genpyzog, [
+        '--name', pyzog_name,
+        '--logpath', pyzog_logpath,
+        '--type', pyzog_type,
+        '--addr', pyzog_addr,
+        '-s', pyzog_sleep_time,
+        '-m', 'thread',
+        '-c', 'req.*',
+        '-c', 'app.*',
+        ])
+    assert result.exit_code == 0
+    conf = get_conf(genpyzog_conf)
+    assert conf['pyzog']['type'] == pyzog_type
+    assert conf['pyzog']['addr'] == pyzog_addr
+    assert conf['pyzog']['sleep_time'] == str(pyzog_sleep_time)
+
+
+@pytest.fixture
 def gensupe_conf():
     sconf = Path(__file__).parent.parent.joinpath('supervisord.conf')
     print(' SETUP create: %s' % sconf)
@@ -70,32 +108,27 @@ prog_name = 'test1'
 @pytest.fixture
 def genprog_conf():
     sconf = Path(__file__).parent.parent.joinpath(prog_name + '.conf')
-    print(' SETUP create: %s' % sconf)
+    print(' GENPROG SETUP create: %s' % sconf)
     if sconf.exists():
         sconf.unlink()
     yield sconf
-    print(' TEARDOWN unlink: %s' % sconf)
-    # sconf.unlink()
+    print(' GENPROG TEARDOWN unlink: %s' % sconf)
+    sconf.unlink()
 
 
 def test_genprog(genprog_conf):
     runner = CliRunner()
     from pyzog.cli import genprog
 
-    prog_type = 'redis'
-    prog_addr = '127.0.0.1:6379'
-    prog_channel = 'req.*'
-    prog_logpath = '/srv/logs/pyzog'
     prog_user = 'app'
+    prog_config_file = 'pyzogtest.conf'
     cwd = str(Path().cwd().resolve())
 
     result = runner.invoke(genprog, [
         '-n', prog_name,
-        '-t', prog_type,
-        '-a', prog_addr,
-        '-c', prog_channel,
+        '-c', prog_config_file,
         '-u', prog_user,
-        '-p', prog_logpath])
+    ])
 
     assert result.exit_code == 0
     conf = get_conf(genprog_conf)

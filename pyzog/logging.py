@@ -5,7 +5,6 @@
 """
 import logging 
 from pathlib import Path
-from logging.handlers import WatchedFileHandler
 
 import zmq
 import redis
@@ -101,7 +100,7 @@ def _create_file_handler(target, filename):
     if not logfile.exists():
         logfile.touch()
     # 使用 WatchedFileHandler 在文件改变的时候自动打开新的流，配合 logrotate 使用
-    return WatchedFileHandler(logfile, encoding='utf8')
+    return logging.handlers.WatchedFileHandler(logfile, encoding='utf8')
 
 
 def _create_zmq_handler(target):

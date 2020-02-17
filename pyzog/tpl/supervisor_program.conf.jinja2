@@ -1,5 +1,5 @@
 [program:{{name}}]
-command={{cwd}}/venv/bin/pyzog start -t {{type}} -a '{{addr}}'{% for channel in channels%} -c '{{channel}}'{% endfor %} {{logpath}}
+command={{cwd}}/venv/bin/pyzog start -c {{config_file}}
 process_name=%(program_name)s
 numprocs=1
 directory={{cwd}}

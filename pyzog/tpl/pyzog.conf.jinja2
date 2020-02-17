@@ -1,0 +1,21 @@
+[pyzog]
+
+; 指定服务器类型，可选值 redis/zeromq
+type={{type}}
+
+; 服务器地址，形如 tcp://127.0.0.1:5011 或者 password@127.0.0.1:6379/0
+addr={{addr}}
+
+; log 文件地址
+logpath={{logpath}}
+{%- if type == 'redis' %}
+
+; 仅当 type 为 redis 的时候提供，允许指定多个 channel 名称，每个 channel 之间使用 , 分隔
+channels={{channel | join(',')}}
+
+; 调用 get_message 方法的方式。可选值 thread/while/listen
+get_message_type={{get_message_type}}
+
+; 调用 pyredis.pubsub.get_message 方法的时候需要提供 sleep_time 参数
+sleep_time={{sleep_time}}
+{% endif %}
