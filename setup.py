@@ -52,7 +52,7 @@ setup(
     author = "zrong",
     author_email = "zrongzrong@gmail.com",
     url = "https://zengrong.net",
-    license = "MIT",
+    license = "BSD 3",
     keywords = "development zrong zmq logging",
     python_requires='>=3.6, <4',
     packages = find_packages(exclude=['test*', 'doc*', 'fabric']),
